@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
+from PIL import Image
 import cv2
 import glob
 
@@ -18,8 +19,16 @@ warnings.filterwarnings("ignore")
 class SegmentationDataset(Dataset):
     """Segmentation Dataset"""
 
-    def __init__(self, root_dir, imageFolder, maskFolder, transform=None, seed=None, fraction=None, subset=None,
-                 imagecolormode='rgb', maskcolormode='grayscale'):
+    def __init__(self, 
+                 root_dir, 
+                 image_folder, 
+                 mask_folder, 
+                 transform=None, 
+                 image_colormode='rgb', 
+                 mask_colormode='grayscale',
+                 seed=None,
+                 fraction=None,
+                 subset=None):
         """
         Args:
             root_dir (string): Directory with all the images and should have the following structure.
@@ -30,41 +39,42 @@ class SegmentationDataset(Dataset):
             --Mask
             -----Mask 1
             -----Mask N
-            imageFolder (string) = 'Images' : Name of the folder which contains the Images.
-            maskFolder (string)  = 'Masks : Name of the folder which contains the Masks.
+            image_folder (string) = 'Images' : Name of the folder which contains the Images.
+            mask_folder (string)  = 'Masks : Name of the folder which contains the Masks.
             transform (callable, optional): Optional transform to be applied on a sample.
             seed: Specify a seed for the train and test split
             fraction: A float value from 0 to 1 which specifies the validation split fraction
             subset: 'Train' or 'Test' to select the appropriate set.
-            imagecolormode: 'rgb' or 'grayscale'
-            maskcolormode: 'rgb' or 'grayscale'
+            image_colormode: 'rgb' or 'grayscale'
+            mask_colormode: 'rgb' or 'grayscale'
         """
         self.color_dict = {'rgb': 1, 'grayscale': 0}
-        assert (imagecolormode in ['rgb', 'grayscale'])
-        assert (maskcolormode in ['rgb', 'grayscale'])
+        assert (image_colormode in ['rgb', 'grayscale'])
+        assert (mask_colormode in ['rgb', 'grayscale'])
 
-        self.imagecolorflag = self.color_dict[imagecolormode]
-        self.maskcolorflag = self.color_dict[maskcolormode]
+        self.imagecolorflag = self.color_dict[image_colormode]
+        self.maskcolorflag = self.color_dict[mask_colormode]
         self.root_dir = root_dir
         self.transform = transform
+
         if not fraction:
             self.image_names = sorted(
-                glob.glob(os.path.join(self.root_dir, imageFolder, '*')))
+                glob.glob(os.path.join(self.root_dir, image_folder, '*')))
             self.mask_names = sorted(
-                glob.glob(os.path.join(self.root_dir, maskFolder, '*')))
+                glob.glob(os.path.join(self.root_dir, mask_folder, '*')))
         else:
-            assert (subset in ['Train', 'Test'])
+            assert (subset in ['training', 'test'])
             self.fraction = fraction
             self.image_list = np.array(
-                sorted(glob.glob(os.path.join(self.root_dir, imageFolder, '*'))))
+                sorted(glob.glob(os.path.join(self.root_dir, image_folder, '*'))))
             self.mask_list = np.array(
-                sorted(glob.glob(os.path.join(self.root_dir, maskFolder, '*'))))
+                sorted(glob.glob(os.path.join(self.root_dir, mask_folder, '*'))))
             if seed:
                 np.random.seed(seed)
-            indices = np.arange(len(self.image_list))
-            np.random.shuffle(indices)
-            self.image_list = self.image_list[indices]
-            self.mask_list = self.mask_list[indices]
+                indices = np.arange(len(self.image_list))
+                np.random.shuffle(indices)
+                self.image_list = self.image_list[indices]
+                self.mask_list = self.mask_list[indices]
             if subset == 'Train':
                 self.image_names = self.image_list[:int(
                     np.ceil(len(self.image_list) * (1 - self.fraction)))]
@@ -82,15 +92,15 @@ class SegmentationDataset(Dataset):
     def __getitem__(self, idx):
         img_name = self.image_names[idx]
         if self.imagecolorflag:
-            image = cv2.imread(
-                img_name, self.imagecolorflag).transpose(2, 0, 1)
+            image = np.array(Image.open(img_name)).transpose(2, 0, 1)
         else:
-            image = cv2.imread(img_name, self.imagecolorflag)
+            image = np.array(Image.open(img_name))
         msk_name = self.mask_names[idx]
         if self.maskcolorflag:
-            mask = cv2.imread(msk_name, self.maskcolorflag).transpose(2, 0, 1)
+            mask = np.array(Image.open(msk_name)).transpose(2, 0, 1)
         else:
-            mask = cv2.imread(msk_name, self.maskcolorflag)
+            mask = np.array(Image.open(msk_name))
+
         sample = {'image': image, 'mask': mask}
 
         if self.transform:
@@ -102,9 +112,9 @@ class SegmentationDataset(Dataset):
 class Resize(object):
     """Resize image and/or masks."""
 
-    def __init__(self, imageresize, maskresize):
-        self.imageresize = imageresize
-        self.maskresize = maskresize
+    def __init__(self, image_resize, mask_resize):
+        self.image_resize = image_resize
+        self.mask_resize = mask_resize
 
     def __call__(self, sample):
         image, mask = sample['image'], sample['mask']
@@ -112,8 +122,8 @@ class Resize(object):
             image = image.transpose(1, 2, 0)
         if len(mask.shape) == 3:
             mask = mask.transpose(1, 2, 0)
-        mask = cv2.resize(mask, self.maskresize, cv2.INTER_AREA)
-        image = cv2.resize(image, self.imageresize, cv2.INTER_AREA)
+        mask = cv2.resize(mask, self.mask_resize, cv2.INTER_AREA)
+        image = cv2.resize(image, self.image_resize, cv2.INTER_AREA)
         if len(image.shape) == 3:
             image = image.transpose(2, 0, 1)
         if len(mask.shape) == 3:
@@ -126,7 +136,7 @@ class Resize(object):
 class ToTensor(object):
     """Convert ndarrays in sample to Tensors."""
 
-    def __call__(self, sample, maskresize=None, imageresize=None):
+    def __call__(self, sample, mask_resize=None, image_resize=None):
         image, mask = sample['image'], sample['mask']
         if len(mask.shape) == 2:
             mask = mask.reshape((1,) + mask.shape)
@@ -145,26 +155,7 @@ class Normalize(object):
                 'mask': mask.type(torch.FloatTensor) / 255}
 
 
-def get_dataloader_sep_folder(data_dir, imageFolder='images', maskFolder='mask', batch_size=4):
-    """
-        Create Train and Test dataloaders from two separate Train and Test folders.
-        The directory structure should be as follows.
-        data_dir
-        --Train
-        ------Image
-        ---------Image1
-        ---------ImageN
-        ------Mask
-        ---------Mask1
-        ---------MaskN
-        --Train
-        ------Image
-        ---------Image1
-        ---------ImageN
-        ------Mask
-        ---------Mask1
-        ---------MaskN
-    """
+def get_data_loader(data_dir, image_folder='images', mask_folder='mask', batch_size=1):
     data_transforms = {
         'training': transforms.Compose([ToTensor(), Normalize()]),
         'test': transforms.Compose([ToTensor(), Normalize()]),
@@ -172,11 +163,18 @@ def get_dataloader_sep_folder(data_dir, imageFolder='images', maskFolder='mask',
 
     image_datasets = {x: SegmentationDataset(root_dir=os.path.join(data_dir, x),
                                              transform=data_transforms[x],
-                                             maskFolder=maskFolder,
-                                             imageFolder=imageFolder)
+                                             image_folder=image_folder,
+                                             mask_folder=mask_folder)
                       for x in ['training', 'test']}
 
-    dataloaders = {x: DataLoader(image_datasets[x], batch_size=batch_size, shuffle=True, num_workers=8)
-                   for x in ['training', 'test']}
+    data_loaders = {x: DataLoader(image_datasets[x], batch_size=batch_size, shuffle=True, num_workers=0)
+                    for x in ['training', 'test']}
 
-    return dataloaders
+    return data_loaders
+
+
+def imshow(img):
+    img = img / 2 + 0.5     # unnormalize
+    np_img = img.numpy()
+    plt.imshow(np.transpose(np_img, (1, 2, 0)))
+    plt.show()
