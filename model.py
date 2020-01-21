@@ -76,7 +76,7 @@ class AttentionBlock(nn.Module):
         :param skip_connection: activation from corresponding encoder layer
         :return: output activations
         """
-        g1 = self.W_g(gate)
+        g1 = self.W_gate(gate)
         x1 = self.W_x(skip_connection)
         psi = self.relu(g1 + x1)
         psi = self.psi(psi)
@@ -129,10 +129,10 @@ class AttentionUNet(nn.Module):
         e3 = self.MaxPool(e2)
         e3 = self.Conv3(e3)
 
-        e4 = self.Maxpool(e3)
+        e4 = self.MaxPool(e3)
         e4 = self.Conv4(e4)
 
-        e5 = self.Maxpool(e4)
+        e5 = self.MaxPool(e4)
         e5 = self.Conv5(e5)
 
         d5 = self.Up5(e5)
