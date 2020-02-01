@@ -9,6 +9,7 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 from PIL import Image
 import cv2
+import glob
 from dataset import SegmentationDataset
 
 # Ignore warnings
@@ -81,7 +82,13 @@ def get_data_loaders(data_dir, image_folder='training/images', mask_folder='trai
     return data_loaders
 
 
-def plot_batch(dataloaders, batch_size):
+def plot_batch_from_dataloader(dataloaders, batch_size):
+    """
+
+    :param dataloaders: dataset dataloaders
+    :param batch_size: size of the batch to plot
+    :return: void
+    """
     batch = next(iter(dataloaders['training']))
 
     for i in range(batch_size):
@@ -103,9 +110,16 @@ def myimshow(img, unnormalize=False):
     :return: void
     """
     if unnormalize:
-        img = img / 2 + 0.5
+        img = img * 255
 
     np_img = img.numpy()
     print(np_img.shape)
     plt.imshow(np.transpose(np_img[0], (1, 2, 0)))
     plt.show()
+
+
+def images_generator(path):
+    for img_name in glob.glob(os.path.join(path, '*')):
+        image = np.array(Image.open(img_name)).transpose(2, 0, 1)
+        yield image
+
