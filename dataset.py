@@ -3,6 +3,7 @@ from torch.utils.data import Dataset
 from PIL import Image
 import glob
 import os
+import cv2
 
 
 class SegmentationDataset(Dataset):
@@ -71,16 +72,30 @@ class SegmentationDataset(Dataset):
         return len(self.image_names)
 
     def __getitem__(self, idx):
+
         img_name = self.image_names[idx]
         if self.imagecolorflag:
-            image = np.array(Image.open(img_name)).transpose(2, 0, 1)
+            image = cv2.imread(img_name)
+            image = cv2.copyMakeBorder(image, top=4, bottom=4, left=6, right=5,
+                                       borderType=cv2.BORDER_CONSTANT)
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            image = image.transpose(2, 0, 1)
+
         else:
-            image = np.array(Image.open(img_name))
+            image = cv2.imread(img_name)
+            image = cv2.copyMakeBorder(image, top=4, bottom=4, left=6, right=5,
+                                       borderType=cv2.BORDER_CONSTANT)
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
         msk_name = self.mask_names[idx]
         if self.maskcolorflag:
             mask = np.array(Image.open(msk_name)).transpose(2, 0, 1)
+            mask = cv2.copyMakeBorder(mask, top=4, bottom=4, left=6, right=5,
+                                      borderType=cv2.BORDER_CONSTANT)
         else:
             mask = np.array(Image.open(msk_name))
+            mask = cv2.copyMakeBorder(mask, top=4, bottom=4, left=6, right=5,
+                                      borderType=cv2.BORDER_CONSTANT)
 
         sample = {'image': image, 'mask': mask}
 

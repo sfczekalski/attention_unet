@@ -35,9 +35,9 @@ def plot_prediction(model, dataloaders):
     plt.show()
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    trained_model.to(device)
+    model.to(device)
     inputs = batch['image'].to(device)
-    prediction = trained_model(inputs).detach().cpu()
+    prediction = model(inputs).detach().cpu()
 
     f = plt.figure(figsize=(20, 20))
     grid_img = make_grid(prediction)
@@ -47,5 +47,8 @@ def plot_prediction(model, dataloaders):
     plt.show()
 
 
-trained_model = train()
-plot_prediction(trained_model, dataloaders)
+'''trained_model = train()
+plot_prediction(trained_model, dataloaders)'''
+
+plot_batch_from_dataloader(dataloaders, 4)
+

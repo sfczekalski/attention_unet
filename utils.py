@@ -65,8 +65,9 @@ class Normalize(object):
 
 def get_data_loaders(data_dir, image_folder='training/images', mask_folder='training/1st_manual', batch_size=4):
     data_transforms = {
-        'training': transforms.Compose([Resize((592, 576), (592, 576)), ToTensor(), Normalize()]),
-        'test': transforms.Compose([Resize((592, 576), (592, 576)), ToTensor(), Normalize()]),
+        # Resize((592, 576), (592, 576)),
+        'training': transforms.Compose([ToTensor(), Normalize()]),
+        'test': transforms.Compose([ToTensor(), Normalize()]),
     }
 
     image_datasets = {x: SegmentationDataset(root_dir=data_dir,
@@ -96,6 +97,7 @@ def plot_batch_from_dataloader(dataloaders, batch_size):
         np_img = batch['image'][i].numpy()
         np_mask = batch['mask'][i].numpy()
 
+
         fig, ax = plt.subplots(1, 2, figsize=(10, 5))
         ax[0].imshow(np.transpose(np_img, (1, 2, 0)))
         ax[1].imshow(np.squeeze(np.transpose(np_mask, (1, 2, 0))), cmap='gray')
@@ -113,7 +115,6 @@ def myimshow(img, unnormalize=False):
         img = img * 255
 
     np_img = img.numpy()
-    print(np_img.shape)
     plt.imshow(np.transpose(np_img[0], (1, 2, 0)))
     plt.show()
 
