@@ -63,11 +63,40 @@ class Normalize(object):
                 'mask': mask.type(torch.FloatTensor) / 255}
 
 
+class HorizontalFlip:
+    def __init__(self, prob=.5):
+        self.prob = prob
+
+    def __call__(self, sample):
+        image, mask = sample['image'], sample['mask']
+
+        if np.random.random() < self.prob:
+            image = cv2.flip(image, 1)
+            mask = cv2.flip(mask, 1)
+
+        return {'image': image,
+                'mask': mask}
+
+
+class ApplyClahe(object):
+
+    def __call__(self, sample):
+        image, mask = sample['image'], sample['mask']
+
+        #lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+        img_yuv = cv2.cvtColor(image, cv2.COLOR_BGR2YUV)
+        clahe = cv2.createCLAHE(clipLimit=2.0)
+        img_yuv[:, :, 0] = clahe.apply(img_yuv[:, :, 0])
+        img_output = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2RGB)
+        return {'image': img_output,
+                'mask': mask}
+
+
 def get_data_loaders(data_dir, image_folder='training/images', mask_folder='training/1st_manual', batch_size=4):
     data_transforms = {
         # Resize((592, 576), (592, 576)),
-        'training': transforms.Compose([ToTensor(), Normalize()]),
-        'test': transforms.Compose([ToTensor(), Normalize()]),
+        'training': transforms.Compose([HorizontalFlip(), ApplyClahe(), ToTensor(), Normalize()]),
+        'test': transforms.Compose([HorizontalFlip(), ApplyClahe(), ToTensor(), Normalize()]),
     }
 
     image_datasets = {x: SegmentationDataset(root_dir=data_dir,
@@ -99,7 +128,7 @@ def plot_batch_from_dataloader(dataloaders, batch_size):
 
 
         fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-        ax[0].imshow(np.transpose(np_img, (1, 2, 0)))
+        ax[0].imshow(np_img)
         ax[1].imshow(np.squeeze(np.transpose(np_mask, (1, 2, 0))), cmap='gray')
         plt.show()
 

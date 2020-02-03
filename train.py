@@ -5,7 +5,6 @@ import numpy as np
 import os
 import csv
 from loss import dice_coeff, FocalLoss
-import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from torchvision.utils import make_grid
 

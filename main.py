@@ -52,3 +52,13 @@ plot_prediction(trained_model, dataloaders)'''
 
 plot_batch_from_dataloader(dataloaders, 4)
 
+'''image = cv2.imread('data/training/images/21_training.tif')
+image = cv2.copyMakeBorder(image, top=4, bottom=4, left=6, right=5,
+                           borderType=cv2.BORDER_CONSTANT)
+
+img_yuv = cv2.cvtColor(image, cv2.COLOR_BGR2YUV)
+clahe = cv2.createCLAHE(clipLimit=2.0)
+img_yuv[:, :, 0] = clahe.apply(img_yuv[:, :, 0])
+img_output = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2RGB)
+plt.imshow(img_output)
+plt.show()'''
