@@ -78,14 +78,11 @@ class SegmentationDataset(Dataset):
             image = cv2.imread(img_name)
             image = cv2.copyMakeBorder(image, top=4, bottom=4, left=6, right=5,
                                        borderType=cv2.BORDER_CONSTANT)
-            '''image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            image = image.transpose(2, 0, 1)'''
 
         else:
             image = cv2.imread(img_name)
             image = cv2.copyMakeBorder(image, top=4, bottom=4, left=6, right=5,
                                        borderType=cv2.BORDER_CONSTANT)
-            #image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
         msk_name = self.mask_names[idx]
         if self.maskcolorflag:
