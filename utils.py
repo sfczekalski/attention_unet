@@ -46,6 +46,8 @@ class ToTensor(object):
 
     def __call__(self, sample, mask_resize=None, image_resize=None):
         image, mask = sample['image'], sample['mask']
+        image = image.transpose(2, 0, 1)
+
         if len(mask.shape) == 2:
             mask = mask.reshape((1,) + mask.shape)
         if len(image.shape) == 2:
@@ -63,7 +65,7 @@ class Normalize(object):
                 'mask': mask.type(torch.FloatTensor) / 255}
 
 
-class HorizontalFlip:
+class HorizontalFlip(object):
     def __init__(self, prob=.5):
         self.prob = prob
 
@@ -78,7 +80,7 @@ class HorizontalFlip:
                 'mask': mask}
 
 
-class ApplyClahe(object):
+class ApplyClaheColor(object):
 
     def __call__(self, sample):
         image, mask = sample['image'], sample['mask']
@@ -87,16 +89,20 @@ class ApplyClahe(object):
         clahe = cv2.createCLAHE(clipLimit=2.0)
         img_yuv[:, :, 0] = clahe.apply(img_yuv[:, :, 0])
         img_output = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2RGB)
+
         return {'image': img_output,
                 'mask': mask}
 
 
-class Denoise(object):
+class ApplyClahe(object):
 
     def __call__(self, sample):
         image, mask = sample['image'], sample['mask']
-        image = cv2.fastNlMeansDenoisingColored(image)
-        return {'image': image.transpose(2, 0, 1),
+
+        clahe = cv2.createCLAHE(clipLimit=2.0)
+        image = clahe.apply(image)
+
+        return {'image': image,
                 'mask': mask}
 
 
@@ -109,11 +115,20 @@ class Color2Gray(object):
                 'mask': mask}
 
 
+class Denoise(object):
+
+    def __call__(self, sample):
+        image, mask = sample['image'], sample['mask']
+        image = cv2.bilateralFilter(image, d=5, sigmaColor=9, sigmaSpace=9)
+        return {'image': image,
+                'mask': mask}
+
+
 def get_data_loaders(data_dir, image_folder='training/images', mask_folder='training/1st_manual', batch_size=4):
     data_transforms = {
         # Resize((592, 576), (592, 576)),
-        'training': transforms.Compose([ HorizontalFlip(), ApplyClahe(), Denoise(), ToTensor(), Normalize()]),
-        'test': transforms.Compose([HorizontalFlip(), ApplyClahe(), Denoise(), ToTensor(), Normalize()]),
+        'training': transforms.Compose([HorizontalFlip(), ApplyClaheColor(), Denoise(), ToTensor(), Normalize()]),
+        'test': transforms.Compose([HorizontalFlip(), ApplyClaheColor(), Denoise(), ToTensor(), Normalize()]),
     }
 
     image_datasets = {x: SegmentationDataset(root_dir=data_dir,
@@ -143,9 +158,14 @@ def plot_batch_from_dataloader(dataloaders, batch_size):
         np_img = batch['image'][i].numpy()
         np_mask = batch['mask'][i].numpy()
 
-
         fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-        ax[0].imshow(np.transpose(np_img, (1, 2, 0)))
+        # color image
+        if np_img.shape[1] == 3:
+            ax[0].imshow(np.transpose(np_img, (1, 2, 0)))
+        else:
+            np_img = np_img.astype(float)
+            np_img *= 255.0
+            ax[0].imshow(np.squeeze(np_img), cmap=plt.get_cmap('gray'))
         ax[1].imshow(np.squeeze(np.transpose(np_mask, (1, 2, 0))), cmap='gray')
         plt.show()
 
@@ -170,3 +190,9 @@ def images_generator(path):
         image = np.array(Image.open(img_name)).transpose(2, 0, 1)
         yield image
 
+
+def training_plots(train_losses, test_losses):
+    train_plot, = plt.plot(range(len(train_losses)), train_losses, label='train loss')
+    test_plot, = plt.plot(range(len(test_losses)), test_losses, label='test loss')
+    plt.legend(handles=[train_plot, test_plot])
+    plt.show()

@@ -22,20 +22,30 @@ def dice_coeff(prediction, target):
     return result
 
 
-class FocalLoss(nn.Module):
-    def __init__(self):
-        super().__init__()
+class FocalLoss(nn.modules.loss._WeightedLoss):
+
+    def __init__(self, gamma=0, size_average=None, ignore_index=-100,
+                 reduce=None, balance_param=1.0):
+        super(FocalLoss, self).__init__(size_average)
+        self.gamma = gamma
+        self.size_average = size_average
+        self.ignore_index = ignore_index
+        self.balance_param = balance_param
 
     def forward(self, input, target):
-        if not (target.size() == input.size()):
-            raise ValueError("Target size ({}) must be the same as input size ({})"
-                             .format(target.size(), input.size()))
+        # inputs and targets are assumed to be BatchxClasses
+        assert len(input.shape) == len(target.shape)
+        assert input.size(0) == target.size(0)
+        assert input.size(1) == target.size(1)
 
-        max_val = (-input).clamp(min=0)
-        loss = input - input * target + max_val + \
-               ((-max_val).exp() + (-input - max_val).exp()).log()
+        # compute the negative likelyhood
+        logpt = - F.binary_cross_entropy_with_logits(input, target)
+        pt = torch.exp(logpt)
 
-        invprobs = F.logsigmoid(-input * (target * 2.0 - 1.0))
-        loss = invprobs.exp() * loss
+        # compute the loss
+        focal_loss = -((1 - pt) ** self.gamma) * logpt
+        balanced_focal_loss = self.balance_param * focal_loss
+        return balanced_focal_loss
 
-        return loss.mean()
+
+
